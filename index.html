@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Get There First Model V3</title>
+    <script type="text/javascript" src="./JQuery/jquery-1.11.2.js"></script>
+    <link rel="stylesheet" href=./BootStrap/css/bootstrap.min.css>
+    <link rel="stylesheet" href=./styles/styles.css>
+    <script src="./BootStrap/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r71/three.js"></script>
+    <!--<script type="text/javascript" src="./js/three.js"></script>-->
+    <script type="text/javascript" src="./myJS/MyPoints.js"></script>
+    <script type="text/javascript" src="./myJS/MyPlanets.js"></script>
+    <script type="text/javascript" src="./myJS/MyPolygon.js"></script>
+    <script type="text/javascript" src="./js/OrbitControls.js"></script>
+    <script type="text/javascript" src="./js/VertexNormalsHelper.js"></script>
+    <script type="text/javascript" src="./js/TessellateModifier.js"></script>
+    <script type="text/javascript">
+        var camera, renderer, canvas, scene, control, width, height;
+
+        var ctrlPressed = false;
+
+        var borderListDiv, redBaseListDiv, blueBaseListDiv;
+
+        var createRedBasePressed = false;
+        var createBlueBasePressed = false;
+        var createMarkerPressed = false;
+        var earthRadius = 6371;
+
+        //the id of the item whose menuitem has been moused over
+        var baseMouseOver;
+        var borderMouseOver;
+
+
+        var init = function() {
+            canvas = document.getElementsByTagName("canvas")[0];
+            borderListDiv = document.getElementById("borderListDiv");
+            redBaseListDiv = document.getElementById("redBaseListDiv");
+            blueBaseListDiv = document.getElementById("blueBaseListDiv");
+
+            width = canvas.clientWidth;
+            height = canvas.clientHeight;
+
+            //load saved maps from local storage
+            for ( var i = 0, len = localStorage.length; i < len; ++i ) {
+                var id = localStorage.key( i );
+                //console.log( localStorage.getItem( id) );
+                var div = document.createElement('div');
+                div.id = localStorage.key( i );
+                div.className = "savedMapsListItem";
+                div.innerHTML = id;
+
+                div.addEventListener('click', loadMapClicked, false);
+                div.addEventListener('dblclick', deleteMapClicked, false);
+                document.getElementById("savedMapsListDiv").appendChild(div);
+            }
+
+
+            renderer = new THREE.WebGLRenderer({canvas:canvas});
+            renderer.setSize( width, height );
+            renderer.setClearColor(new THREE.Color(0x000000), 1);
+
+            scene = new THREE.Scene();
+
+
+            camera = new THREE.PerspectiveCamera(
+                    15,     // Field of view
+                    width / height,  // Aspect ratio
+                    0.1,    // Near
+                    10000   // Far
+            );
+            camera.position.set( 0, 0, -4 );
+            //camera.lookAt(earth.)
+            scene.add(camera);      //need to add camera to scene because were adding a light to the camera
+
+
+            control = new THREE.OrbitControls(camera,canvas);
+            control.maxDistance = SpaceObjectProto.starFieldRadius -1;
+            //TODO: figure out the controls key stuff below
+            // control.keys = [ 65, 83, 68 ];
+
+            var spotLight = new THREE.SpotLight(0xFFFFFF);
+            //camera.add(spotLight);
+
+            /*var pointLight = new THREE.PointLight(0xFFFFFF);
+             camera.add(pointLight);*/
+
+            var directionalLight = new THREE.DirectionalLight( 0xffffff );
+            directionalLight.target.set = new THREE.Vector3(0,0,0);
+            camera.add( directionalLight );
+
+            var pointLight = new THREE.PointLight( 0xffffff, 1, 0 );
+            scene.add( pointLight );
+
+            var ambient = new THREE.AmbientLight( 0xDDDDDD );
+            scene.add( ambient );
+
+            var manager = new THREE.LoadingManager();
+            manager.onProgress = function ( item, loaded, total ) {
+                console.log( item, loaded, total );
+            };
+
+            //load models
+            var loader = new THREE.JSONLoader(manager);
+            SpaceObjectProto.intitialize(scene, loader, function(){
+                camera.lookAt(SpaceObjectProto.earth.mesh.position);
+            });
+
+
+
+
+            var clock = new THREE.Clock();
+
+            addEventListeners();
+
+            var render = function() {
+                var dt = clock.getDelta();
+                control.update(dt);
+                //updateCamera(dt);
+                renderer.render(scene,camera);
+                requestAnimationFrame(render);
+            };
+
+            requestAnimationFrame(render);
+        };
+
+        window.onload = init;
+        window.onresize = init;
+
+
+        function onKeyDown(evt) {
+            switch (evt.keyCode) {
+                case 17: // 'ctrl'
+                    ctrlPressed = true;
+                    break;
+
+            }
+        }
+
+        function onKeyUp(evt) {
+            switch (evt.keyCode) {
+                case 17: // 'ctrl'
+                    ctrlPressed = false;
+                    break;
+            }
+        }
+
+        function updateCamera(dt){
+
+        }
+
+        //an array to hold the current set of active polygons
+        // each of these will act as a target for a mouse click
+        // if the users clicks on one of these active points then we pass this array to the
+        // polygon constructor to build the polygon, and then empty this array
+        var activeMarkerPoints=[];
+
+
+        function mouseClick(event) {
+            var clickPosVec2 = new THREE.Vector2();
+            clickPosVec2.x = ( event.offsetX / width ) * 2 - 1;
+            clickPosVec2.y = - ( event.offsetY / height ) * 2 + 1;
+            var rayCaster = new THREE.Raycaster();
+            camera.updateMatrixWorld();
+            rayCaster.setFromCamera( clickPosVec2, camera );
+
+            var intersectionArray = rayCaster.intersectObjects( scene.children );
+            loopIntersection:
+                    for(var i=0; i< intersectionArray.length; i++){
+                        if(intersectionArray[i].object) {
+                            switch (intersectionArray[i].object.name) {
+                                case "earth":
+                                    if (ctrlPressed) {
+                                        if(createMarkerPressed) {
+                                            var polyMarker = new MyPolyPoint(scene, intersectionArray[i].point);
+                                            activeMarkerPoints.push(polyMarker);
+                                            MyPolyPointProto.polyPoints.push(polyMarker);
+                                        }
+                                        else if (createBlueBasePressed || createRedBasePressed) {
+                                            var side;
+                                            if (createBlueBasePressed) {
+                                                side = "blue";
+                                            }
+                                            else if (createRedBasePressed) {
+                                                side = "red";
+                                            }
+                                            new MyPolyBase(scene, intersectionArray[i].point, side);
+                                        }
+                                    }
+                                    break;
+                                case "marker":
+                                    if (activeMarkerPoints.length < 3) {
+                                        alert("Please place at least three points to build boundary");
+                                    }
+                                    else {
+                                        var polyBorder = new MyPolygon(activeMarkerPoints);
+                                        activeMarkerPoints = [];
+                                        break loopIntersection;
+
+                                    }
+                                    break;
+                            }
+                        }
+                    }
+
+
+        }
+
+        function addEventListeners(){
+            window.addEventListener('keydown', onKeyDown, false );
+            window.addEventListener('keyup', onKeyUp, false );
+            canvas.addEventListener('click', mouseClick, false);
+            document.getElementById("btnClearMarkers").addEventListener('click', clearMarkers, false);
+            document.getElementById("btnPerformCalculations").addEventListener('click', performCalculations, false);
+            document.getElementById("btnCreateMarker").addEventListener('click', createBaseClicked, false);
+            document.getElementById("btnCreateRedBase").addEventListener('click', createBaseClicked, false);
+            document.getElementById("btnDeleteRedBase").addEventListener('click', deleteBaseClicked, false);
+            document.getElementById("btnCreateBlueBase").addEventListener('click', createBaseClicked, false);
+            document.getElementById("btnDeleteBlueBase").addEventListener('click', deleteBaseClicked, false);
+            document.getElementById("btnClearMap").addEventListener('click', clearMap, false);
+            document.getElementById("btnClearBoundaries").addEventListener('click', clearBoundaries, false);
+            document.getElementById("btnSaveMap").addEventListener('click', saveMapClicked, false);
+        }
+
+        function baseClicked(event){
+            var base;
+
+            if(event.currentTarget.className.toLowerCase().indexOf("red") != -1){
+                base = MyPolyPointProto.redBases[event.currentTarget.id];
+            }
+            if(event.currentTarget.className.toLowerCase().indexOf("blue") != -1){
+                base = MyPolyPointProto.blueBases[event.currentTarget.id];
+            }
+
+            var strArray = event.currentTarget.innerText.split(" ");
+            var speed = prompt("Set the deployment speed for " + base.pointName, strArray[strArray.length-1].replace("kph",""));
+            if((speed!=null)&&(!isNaN(speed))) {
+                base.speed = speed;
+
+                strArray[strArray.length-1] = speed+"kph";
+                var newText ="";
+                for (var i=0; i<strArray.length; i++){
+                    newText += strArray[i] + " ";
+                    newText.trim();
+                }
+                event.currentTarget.innerText = newText;
+            }
+        }
+        function boundaryClicked(event){
+
+            var r = confirm("Delete this boundary?");
+            if (r == true) {
+                MyPolygonProto.delete(event.currentTarget.id);
+                event.currentTarget.parentNode.removeChild(event.currentTarget);
+            }
+        }
+
+        function clearMap(event){
+            var r = confirm("Delete all map items?");
+            if (r == true) {
+                MyPolygonProto.deleteAll();
+                removeBoundaryDivs();
+                MyPolyPointProto.deleteAll();
+                removeBaseDivs("red");
+                removeBaseDivs("blue");
+            }
+        }
+        function clearBoundaries(event){
+            var r = confirm("Delete all boundaries?");
+            if (r == true) {
+                MyPolygonProto.deleteAll();
+                removeBoundaryDivs();
+            }
+        }
+
+        function removeBoundaryDivs(){
+            var borderDiv = document.getElementById("borderListDiv");
+            while(borderDiv.firstChild){
+                borderDiv.removeChild(borderDiv.firstChild);
+            }
+        }
+
+        function removeBaseDivs(side){
+            var baseDiv;
+            if(side.toLowerCase() === "red"){
+                baseDiv = document.getElementById("redBaseListDiv")
+            }
+            if(side.toLowerCase() === "blue"){
+                baseDiv = document.getElementById("blueBaseListDiv")
+            }
+            while(baseDiv.firstChild){
+                baseDiv.removeChild(baseDiv.firstChild);
+            }
+        }
+
+        function createBaseClicked(event){
+            switch(event.currentTarget.id){
+                case "btnCreateRedBase":
+                    if(!createRedBasePressed) {
+                        createRedBasePressed = true;
+                        createBlueBasePressed = false;
+                        createMarkerPressed = false
+                        document.getElementById("placeNotice").innerHTML = "Place Red Base";
+                    }
+                    else{
+                        createRedBasePressed = false;
+                        document.getElementById("placeNotice").innerHTML = "Place Nothing";
+                    }
+                    break;
+                case "btnCreateBlueBase":
+                    if(!createBlueBasePressed) {
+                        createBlueBasePressed = true;
+                        createRedBasePressed = false;
+                        createMarkerPressed = false
+                        document.getElementById("placeNotice").innerHTML = "Place Blue Base";
+                    }
+                    else{
+                        createBlueBasePressed = false;
+                        document.getElementById("placeNotice").innerHTML = "Place Nothing";
+                    }
+                    break;
+                case "btnCreateMarker":
+                    if(!createMarkerPressed) {
+                        createMarkerPressed = true;
+                        createRedBasePressed = false;
+                        createBlueBasePressed = false;
+                        document.getElementById("placeNotice").innerHTML = "Place Boundary Marker";
+
+                    }
+                    else{
+                        createMarkerPressed = false;
+                        document.getElementById("placeNotice").innerHTML = "Place Nothing";
+                    }
+                    break;
+            }
+            console.log("blue base = " + createBlueBasePressed +
+            " | red base = " + createRedBasePressed +
+            " | marker " + createMarkerPressed);
+        }
+
+        function deleteBaseClicked(event){
+            MyPolyPointProto.deleteBases(event.currentTarget.id);
+
+            var side;
+
+            if(event.currentTarget.id === "btnDeleteRedBase"){
+                side = "red";
+            }
+            else if(event.currentTarget.id === "btnDeleteBlueBase"){
+                side = "blue";
+            }
+            removeBaseDivs(side);
+        }
+
+        //clear out any individual markers on the screen
+        function clearMarkers(){
+            for(var i = 0; i < activeMarkerPoints.length; i++){
+                activeMarkerPoints[i].delete();
+            }
+            activeMarkerPoints = [];
+        }
+        function saveMapClicked(event) {
+
+            var name = prompt("Save as map named:");
+
+
+            //save all to web storage
+            if (typeof(Storage) !== "undefined") {
+                if (localStorage[name]) {
+
+                    var r = confirm("That name is already in use.  Overwrite?")
+                    if (r == true) {
+                        var exists = true;
+                        performMapSave(name, event, exists);
+                    }
+                    else {
+                        return;
+                    }
+                }
+                else {
+                    performMapSave(name, event);
+                }
+            }
+            else {
+                alert("Your browser does not support storage features.  Please upgrade it.")
+            }
+        }
+        function performMapSave(name, event){
+                    var storageObject = {
+                        name: name,
+                        borders: [],
+                        redBases: [],
+                        blueBases: [],
+                        delay: 0
+                    };
+
+                    storageObject.name = name;
+                    storageObject.delay = document.getElementById("delay").value;
+                    //step through the scene
+                    for (var i = 0; i < scene.children.length; i++) {
+                        if ((scene.children[i].type !== "AmbientLight") &&
+                                (scene.children[i].type !== "PerspectiveCamera")) {
+
+                            var jsonMesh;
+                            var jsonGeometry;
+                            var jsonMaterial;
+
+                            switch (scene.children[i].name) {
+                                case "redBase":
+                                    var redBase ={};
+                                    jsonMesh = JSON.stringify(scene.children[i].toJSON());
+                                    jsonGeometry = JSON.stringify(scene.children[i].geometry.toJSON());
+                                    jsonMaterial = JSON.stringify(scene.children[i].material.toJSON());
+                                    redBase.mesh = jsonMesh;
+                                    //redBase.material = jsonMaterial;
+                                    //redBase.geometry = jsonGeometry;
+                                    storageObject.redBases.push(redBase);
+                                    break;
+                                case "blueBase":
+                                    var blueBase ={};
+                                    jsonMesh = JSON.stringify(scene.children[i].toJSON());
+                                    jsonGeometry = JSON.stringify(scene.children[i].geometry.toJSON());
+                                    jsonMaterial = JSON.stringify(scene.children[i].material.toJSON());
+                                    blueBase.mesh = jsonMesh;
+                                    blueBase.material = jsonMaterial;
+                                    blueBase.geometry = jsonGeometry;
+                                    storageObject.blueBases.push(blueBase);
+                                    break;
+                                case "boundary":
+                                    var boundary ={};
+                                    jsonMesh = JSON.stringify(scene.children[i].toJSON());
+                                    jsonGeometry = JSON.stringify(scene.children[i].geometry.toJSON());
+                                    jsonMaterial = JSON.stringify(scene.children[i].material.toJSON());
+                                    boundary.mesh = jsonMesh;
+                                    //boundary.material = jsonMaterial;
+                                    //boundary.geometry = jsonGeometry;
+                                    storageObject.borders.push(JSON.stringify(boundary));
+                                    break;
+                            }
+                        }
+                    }
+                    var jsonStorageObjectString = JSON.stringify(storageObject);
+                    localStorage.setItem(name, jsonStorageObjectString);
+                    var div = document.createElement('div');
+                    div.className = "savedMapsListItem";
+                    div.id = name;
+                    div.innerHTML = name;
+                    div.addEventListener('click', loadMapClicked, false);
+                    document.getElementById("savedMapsListDiv").appendChild(div);
+
+            }
+
+
+
+
+        function loadMapClicked(event){
+            var objLoader = new THREE.ObjectLoader();
+            var name = event.currentTarget.id;
+            var r = confirm("Load saved map " + name + "?");
+            if (r == true) {
+
+                var retrievedObject = JSON.parse(localStorage.getItem(name));
+
+                for(var i = 0; i< retrievedObject.redBases.length; i++) {
+                    var meshString = retrievedObject.redBases[i].mesh;
+                    var meshObject = JSON.parse(meshString);
+                    //var loadedGeometry = JSON.parse(baseJSONObject.mesh);
+
+                    var loadedMesh = objLoader.parse(meshObject);
+                    MyPolyPointProto.createFromMesh(loadedMesh, "red");
+                }
+
+                for(var i = 0; i< retrievedObject.blueBases.length; i++) {
+                    var meshString = retrievedObject.blueBases[i].mesh;
+                    var meshObject = JSON.parse(meshString);
+                    //var loadedGeometry = JSON.parse(baseJSONObject.mesh);
+
+                    var loadedMesh = objLoader.parse(meshObject);
+                    MyPolyPointProto.createFromMesh(loadedMesh, "blue");
+                }
+
+                for(var i = 0; i< retrievedObject.borders.length; i++) {
+                    var borderJSONString = retrievedObject.borders[i];
+                    var borderJSONObject = JSON.parse(borderJSONString);
+                    var loadedGeometry = JSON.parse(borderJSONObject.mesh);
+
+                    //objLoader can't handle ShapeGeometry, but it can handle Geometry
+                    loadedGeometry.geometries[0].type = "Geometry";
+
+                    var loadedMesh = objLoader.parse(loadedGeometry);
+                    MyPolygonProto.createFromMesh(loadedMesh);
+
+                }
+                console.log("loaded");
+            }
+        }
+
+        function deleteMapClicked(event){
+            var name = event.currentTarget.id;
+            var r = confirm("Permanently delete saved map " + name + "?");
+            if (r == true) {
+                localStorage.removeItem(name);
+            }
+            var savedMapsListItems = document.getElementsByClassName("savedMapsListItem");
+        }
+
+
+
+        function performCalculations(){
+
+            var faceIndices = [ 'a', 'b', 'c', 'd' ];
+            var face, geometry, numVertices, vertex, vertexIndex;
+
+            if(MyPolygonProto.polygons.length>0){
+                var faceCounter =  0;
+                var redFaceCounter =0;
+                var blueFaceCounter = 0;
+                var progressDiv = document.getElementById("progress");
+                var color;
+                var blueForceDelay = parseFloat(document.getElementById("delay").value);
+                if(isNaN(blueForceDelay)){
+                    alert("Blue force delay is not a valid number.  Setting it to 0.")
+                }
+
+                progressDiv.innerHTML = ""
+                document.getElementById("redStats").innerHTML = "";
+                document.getElementById("blueStats").innerHTML = "";
+
+                //go through each face in each boundary
+                for(var iBorderCounter=0; iBorderCounter<MyPolygonProto.polygons.length; iBorderCounter++){
+                    //loop through each face
+                    for(var faceCounter=0; faceCounter<MyPolygonProto.polygons[iBorderCounter].polyMesh.geometry.faces.length; faceCounter++){
+                        geometry = MyPolygonProto.polygons[iBorderCounter].polyMesh.geometry;
+                        face = geometry.faces[faceCounter];
+                        numVertices = ( face instanceof THREE.Face3 ) ? 3 : 4;
+
+                        //loop through each vertex in the face
+                        for( var faceVertexCounter = 0; faceVertexCounter < numVertices; faceVertexCounter++ ) {
+                            vertexIndex = face[faceIndices[faceVertexCounter]];
+                            vertex = geometry.vertices[vertexIndex];
+
+                            var closestBaseColor="";
+                            var fastestTime = Infinity;
+
+                            //loop through all the red bases
+                            for (var x = 0; x < MyPolyPointProto.redBases.length; x++){
+                                //calculate the great circle distance between the vertex and the base
+                                var distance = Math.acos(MyPolyPointProto.redBases[x].mesh.position.normalize().dot(vertex.normalize()));
+                                distance = distance * earthRadius;
+                                var time = distance/MyPolyPointProto.redBases[x].speed;
+                                if(time < fastestTime){
+                                    fastestTime = time;
+                                    closestBaseColor = "red";
+                                }
+                            }
+                            //loop through all the blue bases
+                            for (var x = 0; x < MyPolyPointProto.blueBases.length; x++){
+                                //calculate the great circle distance between the vertex and the base
+                                var distance = Math.acos(MyPolyPointProto.blueBases[x].mesh.position.normalize().dot(vertex.normalize()));
+                                distance = distance * earthRadius;
+                                var time = blueForceDelay + distance/MyPolyPointProto.blueBases[x].speed;
+                                if(time < fastestTime){
+                                    fastestTime = time;
+                                    closestBaseColor = "blue";
+                                }
+                            }
+
+                            color = new THREE.Color( 0xffffff );
+                            //change the vertex color based on which color is closest
+                            if(closestBaseColor==="red") {
+                                color.setHex( 0xFF3366 );
+                                redFaceCounter++;
+                            }
+                            if(closestBaseColor==="blue") {
+                                color.setHex( 0x33CCFF );
+                                blueFaceCounter++;
+                            }
+                            face.vertexColors[faceVertexCounter] = color;
+                            //console.log("vertex " + faceVertexCounter + " : " + closestBaseColor);
+                        }
+                    }
+                    //console.log("Boundary " + iBorderCounter + 1 + " complete");
+                }
+
+                //update colors
+                for(var k=0; k<MyPolygonProto.polygons.length; k++) {
+                    MyPolygonProto.polygons[k].polyMesh.geometry.colorsNeedUpdate = true;
+                }
+
+                //update stats
+                var totalFaces = redFaceCounter + blueFaceCounter;
+                document.getElementById("redStats").innerHTML = "Red Coverage: " + Math.floor((redFaceCounter/totalFaces)*100) + "%";
+                document.getElementById("blueStats").innerHTML = "Blue Coverage: " + Math.floor((blueFaceCounter/totalFaces)*100) + "%";
+
+            }
+            else{
+                alert("Set up a boundary first");
+            }
+        }
+
+        function baseMouseOver(event){
+            if(event.currentTarget.className.indexOf("red")!== -1)
+                baseMouseOver.side = "red";
+            else if(event.currentTarget.className.indexOf("blue")!== -1)
+                baseMouseOver.side = "blue";
+            baseMouseOver.id =  event.currentTarget.id;
+
+            console.log("baseMouseOver: " + baseMouseOver.side + " " + baseMouseOver.id);
+        }
+
+        function baseMouseOut(event){
+            baseMouseOver.side = undefined;
+            console.log("baseMouseOut: "+ event.currentTarget.id);
+
+        }
+        function boundaryMouseOver(event){
+            borderMouseOver.id = event.currentTarget.id;
+            console.log("boundaryMouseOver: " + borderMouseOver.id);
+        }
+
+        function boundaryMouseOut(event){
+            borderMouseOver = undefined;
+            console.log("boundaryMouseOut: " + event.currentTarget.id);
+        }
+
+
+
+    </script>
+
+    <!-- shaders -->
+    <script type="x-shader/x-vertex" id="boundaryPolygonVertexShader">
+
+        void main() {
+           gl_Position = projectionMatrix *
+                  modelViewMatrix *
+                  vec4(position,1.0);
+        }
+    </script>
+
+    <script type="x-shader/x-vertex" id="boundaryPolygonFragmentShader">
+        void main() {
+
+            // compose the colour using the UV coordinate
+            // and modulate it with the noise like ambient occlusion
+            gl_FragColor = vec4( 1.0, 0.0, 0.0, 1.0 );
+        }
+    </script>
+
+    <script type="x-shader/x-vertex" id="testVertexShader">
+       varying vec2 vUv;
+
+        void main() {
+
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+        }
+    </script>
+
+    <script type="x-shader/x-vertex" id="testFragmentShader">
+       varying vec2 vUv;
+
+        void main() {
+
+            // colour is RGBA: u, v, 0, 1
+            gl_FragColor = vec4( vec3( vUv, 0. ), 1. );
+
+        }
+    </script>
+</head>
+<body>
+<div id = "body" class="container-fluid">
+    <h1>Get There First</h1>
+    <table id="container">
+        <table>
+            <tr>
+                <td>
+                    <div id="canvasDiv" >
+                        <canvas id="canvas" class="globeCanvas">
+                    </div>
+                </td>
+                <td class = instructions>
+                    <h3>Directions:</h3>
+                    <br>
+                    <h4>Hold the "Ctrl" Key to Place an Item</h4>
+                    <ul class="instructionsDivList">
+                        <li><div>Item Being Placed:</div></li>
+                        <li><div id="placeNotice">Nothing</div></li>
+                        <br>
+                        <li>
+                            <button id="btnCreateMarker" type="button" class="btn btn-warning">Place Marker</button>
+                            <button id="btnClearMarkers" type="button" class="btn btn-warning">ClearMarkers</button>
+                        </li>
+                        <br>
+                        <li>
+
+                            <button id="btnCreateRedBase" type="button" class="btn btn-danger">Red Base</button>
+                            <button id="btnDeleteRedBase" type="button" class="btn btn-danger">Clear Red</button>
+                            <div id="redStats"></div>
+                        </li>
+                        <br>
+
+                        <li>
+                            <button id="btnCreateBlueBase" type="button" class="btn btn-primary">Blue Base</button>
+                            <button id="btnDeleteBlueBase" type="button" class="btn btn-primary">Clear Blue</button>
+                            <div id="blueStats"></div>
+                        </li>
+                        <li>
+                        <li><div>Blue Force Delay:</div></li>
+                        <li><input id="delay" type="text" name="delay" value="0"> (hrs)</li>
+                        </li>
+                    </ul>
+                </td>
+            </tr>
+        </table>
+        <table>
+            <tr>
+                <h4>Map Controls</h4>
+            </tr>
+            <tr>
+                <div id="controlsDiv" class="btn-group">
+                    <!--    <button id="btnGrab" type="button" class="btn btn-primary">Grab</button>
+                        <button id="btnDrawBounds" type="button" class="btn btn-primary">Draw Bounds</button>-->
+
+                    <button id="btnPerformCalculations" type="button" class="btn btn-primary">Perform Calculations</button>
+                    <button id="btnSaveMap" type="button" class="btn btn-success">Save Map</button>
+                    <button id="btnClearBoundaries" type="button" class="btn btn-danger">Clear Boundaries</button>
+                    <button id="btnClearMap" type="button" class="btn btn-danger">Clear Map</button>
+                    <div id="progress"></div>
+                </div>
+            </tr>
+        </table>
+        <!--<div>
+            <button id="btnClearBounds" type="button" class="btn btn-primary">Clear Bounds</button>
+        </div>-->
+        <table class="bottomTable">
+            <tr><td class = "top">
+                <div class="left">
+                    <h4>Items</h4>
+                    <table class ='itemTable'>
+                        <tr>
+                            <th>Boundaries</th>
+                            <th>Red Bases</th>
+                            <th>Blue Bases</th>
+                        </tr>
+                        <tr>
+                            <td class="items">
+                                <div id="borderListDiv">
+                                </div>
+                            </td>
+                            <td class="items">
+                                <div id="redBaseListDiv">
+                                </div>
+
+                            </td>
+                            <td class="items">
+                                <div id="blueBaseListDiv">
+                                </div>
+
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+                <td class = "top">
+                    <h4>Saved Maps</h4>
+                    <div class="right">
+                        <table class ='savedMaps'>
+                            <tr>
+                                <th>Click to Load | Double Click to Delete</th>
+                            </tr>
+                            <tr>
+                                <td >
+                                    <div id="savedMapsListDiv">
+
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </td></tr>
+        </table>
+
+        <div class="directions" >
+            <h4>Directions:</h4>
+            <p class="directionText">
+                Click left mouse button and drag to move globe.  Use scroll wheel to zoom.<br/>
+                Hold the Ctrl key and click on the globe to place a boundary marker.<br/>
+                Double click on the last marker to close the boundary.<br/>
+            </p>
+        </div>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,66 @@
+div#container{
+    width:80%;
+}
+
+.globeCanvas{
+    width:800px;
+    height:500px;
+    border:1px gray solid;
+    background:#FFFF77;
+}
+
+.instructionsDivList{
+    list-style-type: none;
+}
+
+td.instructions{
+    padding: 1em;
+}
+
+.itemTable{
+    width: 800px;
+    margin-top: .5em;
+    margin-bottom: .5em;
+}
+td.top,
+td.items{
+    vertical-align: top;
+}
+
+.directions{
+    margin-top:4em;
+}
+.directionText{
+    font-style: oblique;
+}
+
+
+.redBase,
+.blueBase,
+.boundaryListDiv,
+.savedMapsListItem{
+    padding: 2px 2em 2px 2em;
+    background-color: #eeeeee;
+    margin: 3px;
+    width: 80%;
+}
+.redBase:hover,
+.blueBase:hover,
+.boundaryListDiv:hover,
+.savedMapsListItem:hover{
+    background-color: #cccccc;
+}
+
+.baseName{
+    float:left;
+}
+.speed{
+    float:right;
+}
+
+div.left{
+    float:left;
+}
+div.right{
+    float:right;
+}
