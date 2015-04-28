@@ -19,6 +19,7 @@ function StarField(parent) {
         that.geometry = new THREE.SphereGeometry(that.starFieldRadius, 32, 32);
         that.mesh = new THREE.Mesh(that.geometry, that.material);
         parent.add(that.mesh);
+        that.mesh.name = "stars";
     });
 }
 
@@ -36,6 +37,7 @@ function Sun(parent) {
         pointLight = new THREE.PointLight(0xFFFFFF, 1, 100);
         that.mesh.add(pointLight);
         parent.add(that.mesh);
+        that.mesh.name = "sun";
     });
 }
 
@@ -64,7 +66,7 @@ function Earth(parent, loader, callback){
 
         /*globeMesh.geometry.buffersNeedUpdate = true;
          globeMesh.geometry.uvsNeedUpdate = true;*/
-        that.mesh.name = "globe";
+        that.mesh.name = "earth";
         //that.mesh.position.set(10, 0, 0);
         parent.add(that.mesh);
 

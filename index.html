@@ -163,8 +163,9 @@
             camera.updateMatrixWorld();
             rayCaster.setFromCamera( clickPosVec2, camera );
 
-            var intersectionArray = rayCaster.intersectObjects( scene.children );
-            loopIntersection:
+            //var intersectionArray = rayCaster.intersectObjects( SpaceObjectProto.earth.mesh );
+            var intersectionArray = rayCaster.intersectObject( scene, true );
+            loopIntersection:   //breakout point
                     for(var i=0; i< intersectionArray.length; i++){
                         if(intersectionArray[i].object) {
                             switch (intersectionArray[i].object.name) {
