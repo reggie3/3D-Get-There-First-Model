@@ -34,7 +34,7 @@ function MyPolyBase(scene, v3Location, side){
 
     var geometry;
     var material;
-    var baseListDiv;
+    var baseListTable;
     var baseClass;
     var id;
 
@@ -42,7 +42,7 @@ function MyPolyBase(scene, v3Location, side){
 
     if(side.indexOf("red")> -1){
         side="red";
-        baseListDiv = redBaseListDiv;
+        baseListTable = redBaseListTable;
         baseClass = "redBase";
         this.redId = MyPolyPointProto.redId;
         MyPolyPointProto.redId++;
@@ -51,7 +51,7 @@ function MyPolyBase(scene, v3Location, side){
     }
     else if(side.indexOf("blue")> -1){
         side="blue";
-        baseListDiv = blueBaseListDiv;
+        baseListTable = blueBaseListTable;
         baseClass = "blueBase";
         this.blueId = MyPolyPointProto.blueId;
         MyPolyPointProto.blueId++;
@@ -98,16 +98,9 @@ function MyPolyBase(scene, v3Location, side){
     this.mesh.add(this.pointLight);
     scene.add(this.mesh);
     //scene.add(this.bounds);
+    this.addBaseToList(baseClass, side, baseListTable, id);
 
-    var div = document.createElement('div');
-    div.id = id;
-    div.className = 'base row ' + baseClass;
-    this.pointName = side + " base " + (id+1);
-    div.innerHTML = this.pointName + " - Speed: " + this.speed + "kph";
-
-    div.addEventListener('click', baseClicked, false);
-    div.addEventListener('mouseover', baseMouseOver, false);
-    baseListDiv.appendChild(div);
+    
 
 }
 
@@ -127,7 +120,8 @@ var MyPolyPointProto = {
     mesh: undefined,
     clickable: true,
     bounds: undefined,
-    speed : 30,         //fastest travel speed in kph
+    speedAvg : 30,         //fastest travel speed in kph
+    speedStdDev : 10,
     myMeshType: undefined,
 
     delete : function(){
@@ -180,7 +174,7 @@ var MyPolyPointProto = {
         CreateNewBase.prototype = MyPolyPointProto;
 
         var newBase = new CreateNewBase();
-        var baseListDiv;
+        var baseListTable;
         var baseClass;
         var id;
 
@@ -192,7 +186,7 @@ var MyPolyPointProto = {
             id = newBase.redId;
             newBase.pointName = "red base " + newBase.redId;
             this.redBases.push(newBase);
-            baseListDiv = redBaseListDiv;
+            baseListTable = redBaseListTable;
             baseClass = "redBase";
         }
         else{
@@ -201,21 +195,59 @@ var MyPolyPointProto = {
             id = newBase.blueId;
             newBase.pointName = "blue base " + newBase.blueId;
             this.blueBases.push(newBase);
-            baseListDiv = blueBaseListDiv;
+            baseListTable = blueBaseListTable;
             baseClass = "blueBase";
         }
-
-        var div = document.createElement('div');
-        div.id = id;
-        div.className = 'base row ' + baseClass;
-        this.pointName = side + " base " + (id+1);
-        div.innerHTML = this.pointName + " - Speed: " + this.speed + "kph";
-
-        div.addEventListener('click', baseClicked, false);
-        div.addEventListener('mouseover', baseMouseOver, false);
-        div.addEventListener('mouseout', baseMouseOut, false);
-        baseListDiv.appendChild(div);
+        this.addBaseToList(baseClass, side, baseListTable, id);
+//        var div = document.createElement('div');
+//        div.id = id;
+//        div.className = 'base row ' + baseClass;
+//        this.pointName = side + " base " + (id+1);
+//        div.innerHTML = this.pointName + " - Speed: " + this.speedAvg + "kph";
+//
+//        div.addEventListener('click', baseClicked, false);
+//        div.addEventListener('mouseover', baseMouseOver, false);
+//        div.addEventListener('mouseout', baseMouseOut, false);
+//        baseListDiv.appendChild(div);
         scene.add(newBase.mesh);
+    },
+    
+    addBaseToList(baseClass, side, baseListTable, id){
+        this.pointName = side + " base " + (id+1);
+        var tableRow = document.createElement('tr');
+        tableRow.className = baseClass;
+        tableRow.id = baseClass + "_row_" + (id);
+        
+        var tableData1 = document.createElement('td');
+        tableData1.id = baseClass + "_baseName_" + (id);
+        tableData1.addEventListener('click', changeBaseNameClicked, false);
+        
+        var tableData2 = document.createElement('td');
+        tableData2.id = baseClass + "_speedMean_" + (id);
+        tableData2.addEventListener('click', changeBaseSpeedAvgClicked, false);
+        
+        var tableData3 = document.createElement('td');
+        tableData3.id = baseClass + "_speedStdDev_" + (id);
+        tableData3.addEventListener('click', changeBaseSpeedStdDevClicked, false);
+        
+            
+        var tableData4 = document.createElement('td');
+        tableData4.className = "glyphicon glyphicon-remove-sign";
+        tableData4.id = baseClass + "_deleteBase_" + (id);
+        tableData4.addEventListener('click', deleteBaseClicked, false);
+        
+    
+        tableRow.appendChild(tableData1);
+        tableRow.appendChild(tableData2);
+        tableRow.appendChild(tableData3);
+        tableRow.appendChild(tableData4);
+        
+        tableData1.innerHTML = this.pointName; 
+        tableData2.innerHTML = this.speedAvg + " kph";
+        tableData3.innerHTML = this.speedStdDev + " kph" ;
+    
+        tableRow.addEventListener('mouseover', baseMouseOver, false);
+        baseListTable.appendChild(tableRow);
     }
 
 };

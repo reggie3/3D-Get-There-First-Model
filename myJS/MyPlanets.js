@@ -44,18 +44,22 @@ function Sun(parent) {
 
 //the globe object
 function Earth(parent, loader, callback){
+    var wireframe = false;
     var that=this;
 
     this.onGeometry = function (geom, mats) {
         that.geometry = geom;
-        that.mesh = new THREE.Mesh(that.geometry, new THREE.MeshFaceMaterial(mats));
-        /*globeMesh = new  THREE.Mesh(globeGeometry, new THREE.MeshBasicMaterial(
-         { color: 0x00FF00,
-         transparent: true,
-         opacity:.5,
-         specular: 0xFFFFFF,
-         wireframe: true, wireframeLinewidth: 1} )
-         );*/
+        if(!wireframe){
+            that.mesh = new THREE.Mesh(that.geometry, new THREE.MeshFaceMaterial(mats));
+        }
+        else{
+            that.mesh = new  THREE.Mesh(geom, new THREE.MeshBasicMaterial({
+             color: 0x00FF00,
+            transparent: true,
+            opacity:.5,
+            specular: 0xFFFFFF,
+            wireframe: true, wireframeLinewidth: 1}));
+        }
 
         //for testing shaders
         /*globeMesh = new  THREE.Mesh(globeGeometry, new THREE.ShaderMaterial( {

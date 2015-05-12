@@ -2,11 +2,18 @@ div#container{
     width:80%;
 }
 
-.globeCanvas{
-    width:800px;
+.canvas{
+        width:800px;
     height:500px;
-    border:1px gray solid;
-    background:#FFFF77;
+
+}
+
+#globeCanvas{
+    z-index: 0;
+        border:1px gray solid;
+}
+#overlay{
+    z-index: 1;   
 }
 
 .instructionsDivList{
@@ -34,7 +41,16 @@ td.items{
     font-style: oblique;
 }
 
-
+.baseTable{
+    margin-left: .5em;
+    margin-right: .5em;
+}
+th{
+    text-align: center;
+}
+td#iterations{
+    padding: 1em;
+}
 .redBase,
 .blueBase,
 .boundaryListDiv,

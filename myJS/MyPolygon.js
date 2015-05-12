@@ -1,4 +1,6 @@
 //user defined polygons
+
+var bolUseShaders = false;
 function MyPolygon(points, newPolygonObject){
     if(!points){
         console.log("create from copy");
@@ -63,15 +65,25 @@ function MyPolygon(points, newPolygonObject){
 
         // Finally, add our new detailed geometry to a mesh object and add it to our scene.
         //var mesh = new THREE.Mesh( smooth, new THREE.MeshPhongMaterial( { color: 0x222222 } ) );
-        this.polyMesh = new THREE.Mesh(polyGeometry,this.polyMaterial);
+        if(bolUseShaders){
+            var shaderMaterial = new THREE.ShaderMaterial( {
+                vertexShader: document.getElementById( 'boundaryPolygonVertexShader' ).textContent,
+                fragmentShader: document.getElementById( 'boundaryPolygonFragmentShader' ).textContent
+            });
+            this.polyMesh = new THREE.Mesh(polyGeometry, shaderMaterial);
+        }
+        else{
+            this.polyMesh = new THREE.Mesh(polyGeometry,this.polyMaterial);
+        }
 
         //using a shader here so that I can displace each vertex on its normal vector
-        /*            this.polyMesh = new THREE.Mesh( polyGeometry,
-         new THREE.ShaderMaterial( {
-         vertexShader: document.getElementById( 'boundaryPolygonVertexShader' ).textContent,
-         fragmentShader: document.getElementById( 'boundaryPolygonFragmentShader' ).textContent
-         } )
-         );*/
+//                    this.polyMesh = new THREE.Mesh( polyGeometry,
+//         this.polyMaterial = new THREE.ShaderMaterial( {
+//         vertexShader: document.getElementById( 'boundaryPolygonVertexShader' ).textContent,
+//         fragmentShader: document.getElementById( 'boundaryPolygonFragmentShader' ).textContent
+//         } )
+//         );
+
 
         /* var planeVector = (new THREE.Vector3( 0, 0, 1 )).applyQuaternion(this.polyMesh.quaternion);
          var quaternion = new THREE.Quaternion();
@@ -160,12 +172,14 @@ var MyPolygonProto = {
     id: 0,
     polyMesh: undefined,
     polyMaterial : new THREE.MeshLambertMaterial({
-        color: 0xFFFFFF, transparent: true,
-        opacity: 0.2,
+        color: 0xFFFFFF, 
+        transparent: true,
+        opacity: 0.75,
         wireframe: false,
         side: THREE.DoubleSide,
         vertexColors: THREE.VertexColors
     }),
+
 
     outline: undefined,
     outlineMaterial : new THREE.LineBasicMaterial( { color: 0xFFFFFF,
