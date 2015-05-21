@@ -1,6 +1,6 @@
 var progressBarMesh;
 
-function performCalculations() {
+function performCalculations(params) {
 
     var faceIndices = ['a', 'b', 'c', 'd'];
     var face, geometry, numVertices, vertex, vertexIndex;
@@ -28,13 +28,16 @@ function performCalculations() {
         else {
             var totRedVertexCounter=0, totBlueVertexCounter=0;  //for final stats
             
+            //now that we know we're going to do some work add the progress bar
+            scene.add(params.pgBar);
+            bolRenderOverlay = true;
+            
            //count the number of faces that we'll have to look at for the progress bar
-            var totalFaces;
+            var totalFaces = 0, totalFacesCompleted = 0;
             for (var iBorderCounter = 0; iBorderCounter < MyPolygonProto.polygons.length; iBorderCounter++) {
                 geometry = MyPolygonProto.polygons[iBorderCounter].polyMesh.geometry;
                 totalFaces += geometry.faces.length;
             }
-            totalFaces *= numIterations;
              //turn the overlay on
             //showOverlay();
             createProgressBar();
@@ -149,7 +152,10 @@ function performCalculations() {
                             face.vertexColors[faceVertexCounter] = new THREE.Color(finalColor.r, finalColor.g, finalColor.b);
                         }
                     }//end each vertex
-                        
+                    totalFacesCompleted++;
+                    params.update(totalFacesCompleted/totalFaces); 
+                    
+                     
                 }//each face 
                 
             }//each border
@@ -208,16 +214,19 @@ function performCalculations() {
                 Math.round((totRedVertexCounter / totalVertices) * 100) + "%";
             document.getElementById("blueStats").innerHTML = "Blue Coverage: " + 
                 Math.round((totBlueVertexCounter / totalVertices) * 100) + "%";
-            //console.log("red speeds: " + redSpeedsAcum);
-            //console.log("blue speeds: " + blueSpeedsAcum);
+
+            //we're finished so remove the progress bar
+            bolRenderOverlay=false;
+            scene.remove(params.pgBar);
+            params.pgBar = undefined;
         }
         var curTime = (new Date()).getTime();
         console.log("Calculations completed in " + ms2Time(curTime - startTime));
-        removeProgressBar();
     }
     else {
         alert("Set up a boundary first");
     }
+    params.onComplete();
 }
 
 function createProgressBar(){

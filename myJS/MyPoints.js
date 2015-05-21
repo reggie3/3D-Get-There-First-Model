@@ -38,37 +38,31 @@ function MyPolyBase(scene, v3Location, side){
     var baseClass;
     var id;
 
-
-
     if(side.indexOf("red")> -1){
         side="red";
         baseListTable = redBaseListTable;
         baseClass = "redBase";
-        this.redId = MyPolyPointProto.redId;
-        MyPolyPointProto.redId++;
+        this.redId = MyPolyPointProto.redId;        
         id = this.redId;
+        MyPolyPointProto.redId++;
 
     }
     else if(side.indexOf("blue")> -1){
         side="blue";
         baseListTable = blueBaseListTable;
         baseClass = "blueBase";
-        this.blueId = MyPolyPointProto.blueId;
-        MyPolyPointProto.blueId++;
+        this.blueId = MyPolyPointProto.blueId;      
         id = this.blueId;
+        MyPolyPointProto.blueId++;
 
     }
 
     if(side === "red"){
-        this.redId = MyPolyPointProto.redId;
-
         geometry =  new THREE.SphereGeometry(this.sphereRadius, 10,10);
         material = new THREE.MeshPhongMaterial( { color: this.redColor } );
         this.pointLight = new THREE.PointLight(this.redColor, 1, 100);
     }
     else if (side === "blue"){
-        this.blueId = MyPolyPointProto.blueId;
-
         geometry =  new THREE.SphereGeometry(this.sphereRadius,10,10);
         material = new THREE.MeshPhongMaterial( { color: this.blueColor } );
         this.pointLight = new THREE.PointLight(this.redColor, 1, 100);
@@ -98,10 +92,8 @@ function MyPolyBase(scene, v3Location, side){
     this.mesh.add(this.pointLight);
     scene.add(this.mesh);
     //scene.add(this.bounds);
-    this.addBaseToList(baseClass, side, baseListTable, id);
-
     
-
+    this.addBaseToList(baseClass, side, baseListTable, id);
 }
 
 var MyPolyPointProto = {
@@ -128,6 +120,47 @@ var MyPolyPointProto = {
         scene.remove(this.mesh);
         scene.remove(this.bounds);
         this.clickable = false;
+    },
+    //remove the base from the approprate base array and
+    //remove the mesh from the sceneGraph
+    deleteBase : function(side, id){
+        if(event.currentTarget.id.toLowerCase().indexOf("red")!==-1){
+            var array = this.redBases;
+            var idType = "redId";
+        }
+        else if(event.currentTarget.id.toLowerCase().indexOf("blue")!==-1){
+            var array = this.blueBases;
+            var idType = "blueId";
+        }
+        if(array){
+            for (var i=0; i< array.length; i++){
+                if(array[i][idType] === Number(id)){
+                    scene.remove(array[i].mesh);
+                    array.splice(i, 1);
+                    i=Infinity;
+                }  
+            }
+        }
+        return true;
+    },
+    //return a base given a side and id
+    getBaseById : function(side, id){
+        if(event.currentTarget.id.toLowerCase().indexOf("red")!==-1){
+            var array = this.redBases;
+            var idType = "redId";
+        }
+        else if(event.currentTarget.id.toLowerCase().indexOf("blue")!==-1){
+            var array = this.blueBases;
+            var idType = "blueId";
+        }
+        if(array){
+            for (var i=0; i< array.length; i++){
+                if(array[i][idType] === Number(id)){
+                    return array[i];
+                }  
+            }
+        }
+        return true;
     },
     deleteBases : function(side){
         if(side.toLowerCase().indexOf("red")> -1) {

@@ -19,8 +19,8 @@
         <script type="text/javascript" src="./js/VertexNormalsHelper.js"></script>
         <script type="text/javascript" src="./js/TessellateModifier.js"></script>
         <script type="text/javascript">
-            var camera, renderer, canvas, overlay, scene, control, width, height;
-    
+            var camera, renderer, canvas, overlay, overlayCamera, scene, control, width, height, clock;
+            var bolRenderOverlay=false;
             var ctrlPressed = false;
     
             var borderListDiv, redBaseListTable, blueBaseListTable;
@@ -39,8 +39,7 @@
                 canvas = document.getElementById("globeCanvas");
                  width = canvas.clientWidth;
                 height = canvas.clientHeight;
-                setupOverlay();
-                hideOverlay();  //only want overaly shown during operations
+
                 
                 borderListDiv = document.getElementById("borderListDiv");
                 redBaseListTable = document.getElementById("redBaseListTable");
@@ -66,6 +65,7 @@
                 renderer.setClearColor(new THREE.Color(0x000000), 1);
     
                 scene = new THREE.Scene();
+                overlay = new THREE.Scene();
     
     
                 camera = new THREE.PerspectiveCamera(
@@ -75,9 +75,17 @@
                         10000   // Far
                 );
                 camera.position.set( 0, 0, -4 );
-                //camera.lookAt(earth.)
+                
+                overlayCamera = new THREE.PerspectiveCamera(
+                        15,     // Field of view
+                        width / height,  // Aspect ratio
+                        0.1,    // Near
+                        10000   // Far
+                );
+                camera.position.set( 0, 0, -4 );
+
                 scene.add(camera);      //need to add camera to scene because were adding a light to the camera
-    
+                scene.add(overlayCamera);
     
                 control = new THREE.OrbitControls(camera,canvas);
                 control.maxDistance = SpaceObjectProto.starFieldRadius -1;
@@ -111,59 +119,49 @@
                     camera.lookAt(SpaceObjectProto.earth.mesh.position);
                 });
     
-    
-    
-    
-                var clock = new THREE.Clock();
-    
                 addEventListeners();
-
-                var render = function() {
-                    var dt = clock.getDelta();
-                    control.update(dt);
-                    //updateCamera(dt);
-                    drawOverlay();
-                    renderer.render(scene,camera);
-                    requestAnimationFrame(render);
-                };
-    
                 requestAnimationFrame(render);
             };
     
             window.onload = init;
-            window.onresize = init;
+            //window.onresize = init;
+            var frameCounter = 0;
             
-            function showOverlay(){
-                console.log("showing overlay");
-                document.getElementById("canvasDiv").appendChild(overlay);
-                //overlay = setupOverlay();
-            }
-            function hideOverlay(){
-                overlay.parentNode.removeChild(overlay);
-            }
-    
-            function setupOverlay(){
-                overlay = document.getElementById("overlay");
-                var rect = canvas.getBoundingClientRect();
-                overlay.style.position = 'absolute';
-                overlay.style.left = rect.left + "px";
-                overlay.style.top = rect.top + "px";
-                overlay.style.width = (rect.right - rect.left) + "px";
-                overlay.style.height = (rect.bottom - rect.top) + "px";
+            var render = function() {
+                if(!clock){
+                    clock = new THREE.Clock();
+                }
+                var dt = clock.getDelta();
+                control.update(dt);
+                //updateCamera(dt);
+                renderer.render(scene,camera);
                 
-            }
-             
-            function drawOverlay() {
-                var context = overlay.getContext('2d');
-                context.clearRect(0, 0, overlay.width, overlay.height);
-                var x = 10;
-                var y = 40;
-                context.font = "12pt Calibri";
-                context.fillStyle = "#ffffff"; // text color
-                context.fillText("Overlay", x, y);
-                context.restore();
-            }
-    
+                if(bolRenderOverlay){
+                    overlayCamera.position.copy(camera.position);
+                    renderer.render(overlay,overlayCamera);
+                }
+                //console.log(frameCounter);
+                frameCounter++;
+                requestAnimationFrame(render);
+            };
+            
+            var forceRender = function() {
+                if(!clock){
+                    clock = new THREE.Clock();
+                }
+                var dt = clock.getDelta();
+                control.update(dt);
+                //updateCamera(dt);
+                renderer.render(scene,camera);
+                
+                if(bolRenderOverlay){
+                    overlayCamera.position.copy(camera.position);
+                    renderer.render(overlay,overlayCamera);
+                }
+                console.log(frameCounter);
+                frameCounter++;
+            };
+                
     
             function onKeyDown(evt) {
                 switch (evt.keyCode) {
@@ -240,17 +238,69 @@
                                 }
                             }
                         }
-    
-    
+
             }
     
+            var updatePGBar = function(percentage){
+                console.log(percentage + " complete");
+                setTimeout(null,50);
+                //forceRender();
+                //window.requestAnimationFrame(forceRender);
+            };
+            
+            
+            //give an indication tht we're starting calculations
+            function runModelMouseDown(event){
+                document.getElementById("btnPerformCalculations").innerText="Calculating . . ."; 
+            }
+            
+            //actually start the calculations on the up event
+            function runModelMouseUp(event){ 
+                var pgBar = CreateProgressBar(4, 1);
+                var params ={
+                    renderFunc: forceRender,
+                    update: updatePGBar,
+                    pgBar: pgBar,
+                    onComplete: calculationsComplete
+                };
+                
+                
+                performCalculations(params);
+                
+                
+            }
+            
+            function CreateProgressBar(width, height){
+                var innerMat = new THREE.MeshBasicMaterial({color: 0xffffff});
+                var borderMat = new THREE.MeshBasicMaterial({color: 0x222222}); 
+                
+                var borderGeom = new THREE.PlaneGeometry( width, height);
+                var innerGeom = new THREE.PlaneGeometry( width*0.9, height*0.9);
+                
+                var innerMesh = new THREE.Mesh(innerMat, innerGeom);
+                var borderMesh = new THREE.Mesh(borderMat, borderGeom);
+                
+                innerMesh.position.z = camera.position.z + .1;
+                borderMesh.position.z = camera.position.z +1.2;
+                
+                var obj = new THREE.Object3D();
+                obj.add(borderMesh);
+                obj.add(innerMesh);
+                
+                return obj;
+            }
+            function calculationsComplete(){
+                document.getElementById("btnPerformCalculations").innerText="Perform Calculations";
+            }
+            
+            
             function addEventListeners(){
                 window.addEventListener('keydown', onKeyDown, false );
                 window.addEventListener('keyup', onKeyUp, false );
                 canvas.addEventListener('click', mouseClick, false);
-                overlay.addEventListener('click', mouseClick, false);
                 document.getElementById("btnClearMarkers").addEventListener('click', clearMarkers, false);
-                document.getElementById("btnPerformCalculations").addEventListener('click', performCalculations, false);
+                document.getElementById("btnPerformCalculations").addEventListener('mousedown', runModelMouseDown, false);
+                document.getElementById("btnPerformCalculations").addEventListener('mouseup', runModelMouseUp, false);
                 document.getElementById("btnCreateMarker").addEventListener('click', createBaseClicked, false);
                 document.getElementById("btnCreateRedBase").addEventListener('click', createBaseClicked, false);
                 //document.getElementById("btnDeleteRedBase").addEventListener('click', deleteBaseClicked, false);
@@ -342,24 +392,32 @@
             function deleteBaseClicked(event){
                 var id = event.currentTarget.id.split("_")[2];
                 var baseString;
-                if(event.currentTarget.id.toLowerCase().indexOf("red")!==1)
+                var side;
+                if(event.currentTarget.id.toLowerCase().indexOf("red")!==-1){
                     baseString = "redBase";
-                else if(event.currentTarget.id.toLowerCase().indexOf("blue")!==1)
+                    side="red";
+                }
+                else if(event.currentTarget.id.toLowerCase().indexOf("blue")!==-1){
                     baseString = "blueBase";
+                    side="blue";
+                }
                
-                var tableRow = document.getElementById(baseString + "_row_" + id);
-                tableRow.parentNode.removeChild(tableRow);
+               //remove the appropriate base symbol from the canvas, and the table of bases
+               if(MyPolyPointProto.deleteBase(side, id)){
+                    var tableRow = document.getElementById(baseString + "_row_" + id);
+                    tableRow.parentNode.removeChild(tableRow);
+               }
             }
             
             function deleteBasesClicked(event){
                 var r = confirm("Delete all bases in this list?")
                 if (r == true) {
                     var rows;
-                    if(event.currentTarget.id.toLowerCase().indexOf("red")!==1){
+                    if(event.currentTarget.id.toLowerCase().indexOf("red")!==-1){
                        //remove all the tr children in this element
                        rows = [].slice.call(redBaseListTable.getElementsByClassName("redBase")) ;
                     }
-                    else if(event.currentTarget.id.toLowerCase().indexOf("blue")!==1){
+                    else if(event.currentTarget.id.toLowerCase().indexOf("blue")!==-1){
                        //remove all the tr children in this element
                        rows = [].slice.call(blueBaseListTable.getElementsByClassName("blueBase"));
                     }
@@ -379,11 +437,11 @@
                 if ((speedAvg != null)&&(!isNaN(speedAvg))) {
                     var strArray = event.currentTarget.id.split("_");
                     event.currentTarget.innerHTML = speedAvg + " kph";
-                    if(event.currentTarget.id.toLowerCase().indexOf("red") != -1){
-                        MyPolyPointProto.redBases[strArray[2]].speedAvg = speedAvg;
+                    if(event.currentTarget.id.toLowerCase().indexOf("red") !== -1){
+                        MyPolyPointProto.getBaseById("red", strArray[2]).speedAvg = speedAvg;
                     }
-                    if(event.currentTarget.id.toLowerCase().indexOf("blue") != -1){
-                        MyPolyPointProto.blueBases[strArray[2]].speedAvg = speedAvg;
+                    if(event.currentTarget.id.toLowerCase().indexOf("blue") !== -1){
+                        MyPolyPointProto.getBaseById("blue", strArray[2]).speedAvg = speedAvg;
                     }
                 }
             }
@@ -394,10 +452,10 @@
                     var strArray = event.currentTarget.id.split("_");
                     event.currentTarget.innerHTML = speedStdDev + " kph";
                     if(event.currentTarget.id.toLowerCase().indexOf("red") != -1){
-                        MyPolyPointProto.redBases[strArray[2]].speedStdDev = speedStdDev;
+                        MyPolyPointProto.getBaseById("red", strArray[2]).speedStdDev = speedStdDev;
                     }
                     if(event.currentTarget.id.toLowerCase().indexOf("blue") != -1){
-                        MyPolyPointProto.blueBases[strArray[2]].speedStdDev = speedStdDev;
+                        MyPolyPointProto.getBaseById("blue", strArray[2]).speedStdDev = speedStdDev;
                     }
                 }
             }
@@ -691,14 +749,13 @@
     
     <body>
         <div id="body" class="container-fluid">
-            <h1>Get There First</h1>
+            <h1>Stochastic Get There First Model</h1>
             <table id="container">
                 <table>
                     <tr>
                         <td>
                             <div id="canvasDiv">
                                 <canvas id="globeCanvas" class="canvas"></canvas>
-                                <canvas id="overlay" class="canvas"></canvas>
                             </div>
                         </td>
                         <td class=i nstructions>
