@@ -18,6 +18,36 @@
         <script type="text/javascript" src="./js/OrbitControls.js"></script>
         <script type="text/javascript" src="./js/VertexNormalsHelper.js"></script>
         <script type="text/javascript" src="./js/TessellateModifier.js"></script>
+        <!--<script src="myJS/sunVertexShader.js" type="x-shader/x-vertex" id="vertexShader"></script>-->
+        <!--<script src="myJS/sunFragmentShader.js" type="x-shader/x-fragment" id="fragmentShader"></script>-->
+
+        <script id="vertexShader" type="x-shader/x-vertex">
+			varying vec2 vUv;
+
+            void main() {
+                vUv = uv;
+
+                gl_Position =   projectionMatrix *
+                                modelViewMatrix *
+                                vec4(position,1.0);
+            }
+
+		</script>
+
+        <script id="fragmentShader" type="x-shader/x-fragment">
+			 uniform sampler2D texture1;
+
+            varying vec2 vUv;
+
+            void main() {
+                gl_FragColor = texture2D(texture1, vUv); // Displays Nothing
+                //gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0); // Works; Displays Flat Color
+            }
+
+		</script>
+
+
+
         <script type="text/javascript">
             var camera, renderer, canvas, overlay, overlayCamera, scene, control, width, height, clock;
             var bolRenderOverlay=false;
@@ -74,7 +104,7 @@
                         0.1,    // Near
                         10000   // Far
                 );
-                camera.position.set( 0, 0, -4 );
+                camera.position.set( -10, 3, 0);
                 
                 overlayCamera = new THREE.PerspectiveCamera(
                         15,     // Field of view
@@ -82,10 +112,10 @@
                         0.1,    // Near
                         10000   // Far
                 );
-                camera.position.set( 0, 0, -4 );
+
 
                 scene.add(camera);      //need to add camera to scene because were adding a light to the camera
-                scene.add(overlayCamera);
+                //scene.add(overlayCamera);
     
                 control = new THREE.OrbitControls(camera,canvas);
                 control.maxDistance = SpaceObjectProto.starFieldRadius -1;
@@ -118,6 +148,8 @@
                 SpaceObjectProto.intitialize(scene, loader, function(){
                     camera.lookAt(SpaceObjectProto.earth.mesh.position);
                 });
+
+
     
                 addEventListeners();
                 requestAnimationFrame(render);
@@ -128,40 +160,34 @@
             var frameCounter = 0;
             
             var render = function() {
+                myRenderFunc();
+                requestAnimationFrame(render);
+            };
+            
+            var forceRender = function() {
+                myRenderFunc();
+            };
+
+            var myRenderFunc = function(){
                 if(!clock){
                     clock = new THREE.Clock();
                 }
                 var dt = clock.getDelta();
+
+                //alter the sun texture
+                //SpaceObjectProto.sun.uniforms.time.value += 0.2 * dt;
+
                 control.update(dt);
                 //updateCamera(dt);
                 renderer.render(scene,camera);
-                
+
                 if(bolRenderOverlay){
                     overlayCamera.position.copy(camera.position);
                     renderer.render(overlay,overlayCamera);
                 }
                 //console.log(frameCounter);
                 frameCounter++;
-                requestAnimationFrame(render);
             };
-            
-            var forceRender = function() {
-                if(!clock){
-                    clock = new THREE.Clock();
-                }
-                var dt = clock.getDelta();
-                control.update(dt);
-                //updateCamera(dt);
-                renderer.render(scene,camera);
-                
-                if(bolRenderOverlay){
-                    overlayCamera.position.copy(camera.position);
-                    renderer.render(overlay,overlayCamera);
-                }
-                console.log(frameCounter);
-                frameCounter++;
-            };
-                
     
             function onKeyDown(evt) {
                 switch (evt.keyCode) {
@@ -271,8 +297,10 @@
             }
             
             function CreateProgressBar(width, height){
-                var innerMat = new THREE.MeshBasicMaterial({color: 0xffffff});
-                var borderMat = new THREE.MeshBasicMaterial({color: 0x222222}); 
+                var innerMat = new THREE.MeshBasicMaterial({color: 0x00ff00,
+                    side: THREE.DoubleSide});
+                var borderMat = new THREE.MeshBasicMaterial({color: 0x222222,
+                    side: THREE.DoubleSide});
                 
                 var borderGeom = new THREE.PlaneGeometry( width, height);
                 var innerGeom = new THREE.PlaneGeometry( width*0.9, height*0.9);

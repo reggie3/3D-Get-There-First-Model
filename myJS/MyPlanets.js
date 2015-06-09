@@ -27,18 +27,59 @@ function StarField(parent) {
 
 //Sun surrounding everything
 function Sun(parent) {
-    var fieldTexture, geometry, pointLight;
+    var bolUseShader = false;
+    var geometry, pointLight;
     var that = this;
-    fieldTexture = THREE.ImageUtils.loadTexture('./images/sunMap.jpg', {},function(){
-        that.material = new THREE.MeshBasicMaterial({map:fieldTexture,
-            side: THREE.BackSide});
-        geometry = new THREE.SphereGeometry(5, 32, 32);
+
+    var buildMesh = function(){
+        geometry = new THREE.SphereGeometry(7, 32, 32);
         that.mesh = new THREE.Mesh(geometry, that.material);
-        pointLight = new THREE.PointLight(0xFFFFFF, 1, 100);
-        that.mesh.add(pointLight);
+        //pointLight = new THREE.PointLight(0xFFFFFF, 1, 100);
+        that.mesh.position.set(20, 0, 0);
+        //that.mesh.add(pointLight);
         parent.add(that.mesh);
         that.mesh.name = "sun";
-    });
+    };
+
+    /************************
+     * TODO: using a shader for texturing randomly swaps shaders
+     * See https://github.com/mrdoob/three.js/issues/6121
+     */
+    if(bolUseShader){
+        that.uniforms = {
+            texture1: { type: "t", value: 0, texture: THREE.ImageUtils.loadTexture( "./images/sunMap.jpg", {}, function(){
+
+            } ) }
+        };
+
+        //that.uniforms.texture1.value.wrapS = that.uniforms.texture1.value.wrapT = THREE.RepeatWrapping;
+        //that.uniforms.texture2.value.wrapS = that.uniforms.texture2.value.wrapT = THREE.RepeatWrapping;
+
+        var size = 0.65;
+
+        that.material = new THREE.ShaderMaterial( {
+
+            uniforms: that.uniforms,
+            vertexShader: document.getElementById( 'vertexShader' ).textContent,
+            fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
+            side: THREE.DoubleSide
+
+        } );
+        buildMesh();
+
+    }
+    else{   //use a standard texture
+        var sunTexture = THREE.ImageUtils.loadTexture('./images/sunMap.jpg', {},function(){
+            that.material = new THREE.MeshBasicMaterial({map:sunTexture,
+                side: THREE.DoubleSide});
+            buildMesh();
+        });
+
+
+    }
+
+
+
 }
 
 
@@ -61,17 +102,9 @@ function Earth(parent, loader, callback){
             wireframe: true, wireframeLinewidth: 1}));
         }
 
-        //for testing shaders
-        /*globeMesh = new  THREE.Mesh(globeGeometry, new THREE.ShaderMaterial( {
-         vertexShader: document.getElementById( 'testVertexShader' ).textContent,
-         fragmentShader: document.getElementById( 'testFragmentShader' ).textContent
-         } )
-         );*/
 
-        /*globeMesh.geometry.buffersNeedUpdate = true;
-         globeMesh.geometry.uvsNeedUpdate = true;*/
         that.mesh.name = "earth";
-        //that.mesh.position.set(10, 0, 0);
+
         parent.add(that.mesh);
 
 
@@ -87,6 +120,7 @@ function Earth(parent, loader, callback){
 }
 
 var SpaceObjectProto = {
+    uniforms: undefined,
     starFieldRadius: 80,
     material: undefined,
     mesh: undefined,

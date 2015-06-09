@@ -29,7 +29,7 @@ function performCalculations(params) {
             var totRedVertexCounter=0, totBlueVertexCounter=0;  //for final stats
             
             //now that we know we're going to do some work add the progress bar
-            scene.add(params.pgBar);
+            //scene.add(params.pgBar);
             bolRenderOverlay = true;
             
            //count the number of faces that we'll have to look at for the progress bar
@@ -153,7 +153,7 @@ function performCalculations(params) {
                         }
                     }//end each vertex
                     totalFacesCompleted++;
-                    params.update(totalFacesCompleted/totalFaces); 
+                    //params.update(totalFacesCompleted/totalFaces);
                     
                      
                 }//each face 
@@ -227,11 +227,12 @@ function performCalculations(params) {
         alert("Set up a boundary first");
     }
     params.onComplete();
+    removeProgressBar();
 }
 
 function createProgressBar(){
     var geom = new THREE.PlaneGeometry(4, .5);
-    var mat = new THREE.MeshBasicMaterial();
+    var mat = new THREE.MeshBasicMaterial({side: THREE.DoubleSide});
     progressBarMesh = new THREE.Mesh(geom, mat);
     progressBarMesh.position.z = 1;
     scene.add(progressBarMesh);
