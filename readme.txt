@@ -1,5 +1,4 @@
 3D Get There First Model
-Test1
 
 Uses the three.js and bootstrap libraries under the MIT License.  See below for license text.
 
